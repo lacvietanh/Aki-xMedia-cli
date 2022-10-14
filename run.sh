@@ -37,19 +37,20 @@ ask(){
     esac
 }
 askInput(){ # $1 define total of input
-    # NOT WORKING RIGHT
     local f
     echo " This function require $1 input!"
     echo " Tip: MacOS can drag & drop file/folder to this terminal window instead of typing keyboard"
     echo " Type path to file/folder"
     for (( i=0; i<$1; i++ )); do
-        while [ "$f" == "" ]; do read -p "Input $((i+1)): " f ; done
-        ls -a "$f" >/dev/null 2>&1
-        if [ $? -eq 0 ]; then
-            inp+=("${f}"); declare -p inp
-        else
-            echo "Not found! ($f)"; f=""
-        fi
+        while [ "$f" == "" ]; do
+            read -p "Input $((i+1)): " f
+            ls -a "$f" >/dev/null 2>&1
+            if [ $? -eq 0 ]; then
+                inp+=("${f}")
+            else
+                echo "Not found! ($f)"; f=""
+            fi
+        done
     done
     check_input
 }
@@ -67,17 +68,18 @@ check_input(){
 ##############  Menu Functions  ###################
 ImgToVid(){ #1
     [ -z "$inp" ] && askInput 1
-    local outfile=output/"${FUNCNAME[0]}_${out}-${inp[0]}".mp4
+    local outfile=output/"${FUNCNAME[0]}_${out}-$(basename ${inp[0]})".mp4
     ffmpeg -y -i "${inp[0]}" -c:v $enc -tune stillimage $quietflag "$outfile"
+    echo 1
 }
 JoinAudToVid(){ #2
     [ -z "$inp" ] && askInput 2
-    local outfile=output/"${FUNCNAME[0]}_${out}-${inp[0]}-${inp[1]}".mp4
+    local outfile=output/"${FUNCNAME[0]}_${out}-$(basename '${inp[0]}')-${inp[1]}".mp4
     ffmpeg -y -i "${inp[0]}" -i "${inp[1]}" -c:v copy $quietflag "$outfile"
 }
 JoinImgToVid(){ #3
     [ -z "$inp" ] && askInput 2
-    local outfile=output/"${FUNCNAME[0]}_${out}-${inp[0]}-${inp[1]}".mp4
+    local outfile=output/"${FUNCNAME[0]}_${out}-$(basename '${inp[0]}')-${inp[1]}".mp4
     # echo $(realpath ${inp[0]}); echo $(realpath ${inp[1]})
     ffmpeg -y -i "${inp[0]}" -i "${inp[1]}" -c:v $enc \
     -filter_complex [0]overlay=x=0:y=0[out] -map [out] -map 0:a \
@@ -87,7 +89,8 @@ JoinImgToVid(){ #3
 }
 ConvertExt(){ #4
     [ -z "$inp" ] && askInput 1
-    ffmpeg -y -i "${inp[0]}" $quietflag output/"ConvertExt-$out"
+    local outfile=output/"${FUNCNAME[0]}-$(basename '${inp[0]}')-${out}"
+    ffmpeg -y -i "${inp[0]}" $quietflag "$outfile"
 }
 CheckMetaInfo(){ #5
     local a b opt _type
@@ -121,9 +124,6 @@ ShowSysInfo(){ #s
         e) ask ;;
         *) echo "Invalid Option!"; unset p; sleep 1; clear; ShowSysInfo ::
     esac
-}
-convertAny(){
-    ffmpeg -i "${inp[0]}" $quietflag $out
 }
 _help(){ #h
     echo "You can run script with directly arguments or select option when no arguments passed"
