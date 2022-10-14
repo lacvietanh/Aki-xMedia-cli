@@ -96,9 +96,9 @@ CheckMetaInfo(){ #5
     ! [ -z $2 ] && b=" -select_streams $2"
     _type=$(ffprobe -show_streams "$a" -v error -show_entries stream=codec_type -of default=nw=1|grep -v DISPOSITION)
     case $_type in
-        video) opt="codec_name,codec_long_name,width,height,bit_rate,sample_rate" ;;
-        image) opt="codec_name,codec_long_name,width,height" ;;
-        audio) opt="codec_name,codec_long_name,bit_rate,sample_rate" ;;
+        *video) opt="codec_name,codec_long_name,width,height,bit_rate,sample_rate" ;;
+        *image) opt="codec_name,codec_long_name,width,height" ;;
+        *audio) opt="codec_name,codec_long_name,bit_rate,sample_rate" ;;
         *) echo "error | $_type"
     esac
     ffprobe -show_streams "$a" -v error $b -show_entries stream=$opt -of default=nw=1 |grep -Ev "DISPOSITION|N/A"
