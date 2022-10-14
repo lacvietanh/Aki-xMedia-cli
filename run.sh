@@ -1,13 +1,13 @@
 #!/bin/bash
 #Script Author: Lac Viet Anh
-#Version: 2022.10.14.1751
-#need: 1. input folder      2. scale/move input     3. Map select audio (function 2)
+#Version: 2022.10.15.0054
+#need: 1. input folder      2. scale/move input     3. Map select audio (JoinAudToVid)
 clear;
-##################  init  ########################
+###################  init  ########################
 declare os mode inp out enc m inp=() quietflag="-v quiet -stats -loglevel warning"
 declare WELCOME_MESSAGE="==== Aki ffmpeg tool for Video - Image - Audio ===="
 
-################  Function  ######################
+##############  Core Functions  ###################
 menu(){
     echo -e "${WELCOME_MESSAGE}"
     echo "Select Tool:"
@@ -36,16 +36,31 @@ ask(){
         *) echo "Invalid option"; unset m; sleep 1; clear; _help ;;
     esac
 }
+askInput(){
+    local r i f
+    echo "   Warning: No input file specified! "
+    read -p "How many input? [2]: " r
+    r=${r:-2}
+    echo "   You can drag and drop file/folder to this terminal window instead of typing keyboard"
+    for (( i=0; i<$r; i++ )); do
+        while ! f; do
+            read -p "Input $i: " f
+            [ $(ls ${inp[$i]}| wc -l) -eq 1 ] && inp+=("${f}") || unset f
+        done
+    done
+    check_input
+}
 check_input(){
     for (( i=0; i<${#inp[@]};i++ )); do
-        if [[ -f ${inp[$i]} ]] || [[ -d ${inp[$i]} ]]; then
+        # if [[ -f ${inp[$i]} ]] || [[ -d ${inp[$i]} ]]; then
+        if [ $(ls ${inp[$i]}| wc -l) -eq 1 ]; then
             echo -e "   INPUT \t $i: ${inp[$i]} ....... OK"
         else
-            echo -e "   INPUT \t $i: ${inp[$i]} ....... Not Found!"; exit 1
+            echo -e "   INPUT \t $i: ${inp[$i]} ....... Not Found!"; unset inp[$i]
         fi
     done
 }
-
+##############  Menu Functions  ###################
 ImgToVid(){ #1
     local outfile=output/"${FUNCNAME[0]}_${out}-${inp[0]}".mp4
     ffmpeg -y -i "${inp[0]}" -c:v $enc -tune stillimage $quietflag "$outfile"
@@ -132,7 +147,7 @@ do
         e) enc=${OPTARG}    ;;
     esac
 done
-! [ -z "$inp" ] && check_input
+! [ -z "$inp" ] && check_input || askInput
 [ -z $enc ]  && GPU_Encoder
 echo -e "   ENCODER: \t $enc"
 [ -z $out ]  && out="output"
@@ -142,6 +157,5 @@ echo -e "   OUTPUT: \t $out"
 
 # for i in ./source/*/Frame/*.png; do
 #     f=$(basename "$i"); d=$(dirname "$i")
-
 #     [[ "$f" =~ "+" ]] && mv "$i" "${d}/$(echo $f|head -c 1)-ver.png" || mv "$i" "${d}/$(echo $f|head -c 1)-sqr.png"
 # done
