@@ -1,7 +1,7 @@
 #!/bin/bash
-#Script Author: Lac Viet Anh
-#Version: 2022.10.15.0054
-#need: 1. input folder      2. scale/move input     3. Map select audio (JoinAudToVid)
+# Script Author: Lac Viet Anh
+# Version: 2022.10.15
+# To do: 1. input folder      2. scale/move input     3. Map select audio (JoinAudToVid)
 clear;
 ###################  init  ########################
 declare os mode inp out enc m inp=() quietflag="-v quiet -stats -loglevel warning"
@@ -36,16 +36,14 @@ ask(){
         *) echo "Invalid option"; unset m; sleep 1; clear; _help ;;
     esac
 }
-askInput(){
-    local r i f
-    echo "   Warning: No input file specified! "
-    read -p "How many input? [2]: " r
-    r=${r:-2}
-    echo "   You can drag and drop file/folder to this terminal window instead of typing keyboard"
-    for (( i=0; i<$r; i++ )); do
-        while ! f; do
-            read -p "Input $i: " f
-            [ $(ls ${inp[$i]}| wc -l) -eq 1 ] && inp+=("${f}") || unset f
+askInput(){ # $1 define total of input
+    local f
+    echo " Tip: MacOS can drag & drop file/folder to this terminal window instead of typing keyboard"
+    echo " Type path to file/folder"
+    for (( i=1; i=$1; i++ )); do
+        while [ "$f" == "" ]; do
+            read -p "Input $((i+1)): " f
+            ls "$f" >/dev/null 2>&1 && inp+=("${f}"); let "i+=1" || echo "Not found! ($f)"; f=0
         done
     done
     check_input
@@ -53,7 +51,7 @@ askInput(){
 check_input(){
     for (( i=0; i<${#inp[@]};i++ )); do
         # if [[ -f ${inp[$i]} ]] || [[ -d ${inp[$i]} ]]; then
-        if [ $(ls ${inp[$i]}| wc -l) -eq 1 ]; then
+        if [ ls "${inp[$i]}" >/dev/null 2>&1 ]; then
             echo -e "   INPUT \t $i: ${inp[$i]} ....... OK"
         else
             echo -e "   INPUT \t $i: ${inp[$i]} ....... Not Found!"; unset inp[$i]
@@ -62,14 +60,17 @@ check_input(){
 }
 ##############  Menu Functions  ###################
 ImgToVid(){ #1
+    [ -z "$inp" ] && askInput 1
     local outfile=output/"${FUNCNAME[0]}_${out}-${inp[0]}".mp4
     ffmpeg -y -i "${inp[0]}" -c:v $enc -tune stillimage $quietflag "$outfile"
 }
 JoinAudToVid(){ #2
+    [ -z "$inp" ] && askInput 2
     local outfile=output/"${FUNCNAME[0]}_${out}-${inp[0]}-${inp[1]}".mp4
     ffmpeg -y -i "${inp[0]}" -i "${inp[1]}" -c:v copy $quietflag "$outfile"
 }
 JoinImgToVid(){ #3
+    [ -z "$inp" ] && askInput 2
     local outfile=output/"${FUNCNAME[0]}_${out}-${inp[0]}-${inp[1]}".mp4
     # echo $(realpath ${inp[0]}); echo $(realpath ${inp[1]})
     ffmpeg -y -i "${inp[0]}" -i "${inp[1]}" -c:v $enc \
@@ -79,18 +80,19 @@ JoinImgToVid(){ #3
     echo -e "\t Output:  \t" $(CheckMetaInfo  "$outfile"  v)
 }
 ConvertExt(){ #4
+    [ -z "$inp" ] && askInput 1
     ffmpeg -y -i "${inp[0]}" $quietflag output/"ConvertExt-$out"
 }
 CheckMetaInfo(){ #5
-    local a b opt type
+    local a b opt _type
     [ -z $1 ] && a="${inp[0]}" || a="$1"
     ! [ -z $2 ] && b=" -select_streams $2"
-    type=$(ffprobe -show_streams "$a" -v error -show_entries stream=codec_type -of default=nw=1|grep -v DISPOSITION)
-    case $type in
+    _type=$(ffprobe -show_streams "$a" -v error -show_entries stream=codec_type -of default=nw=1|grep -v DISPOSITION)
+    case $_type in
         video) opt="codec_name,codec_long_name,width,height,bit_rate,sample_rate" ;;
         image) opt="codec_name,codec_long_name,width,height" ;;
         audio) opt="codec_name,codec_long_name,bit_rate,sample_rate" ;;
-        *) echo "error when get codec_type"
+        *) echo "error | $_type"
     esac
     ffprobe -show_streams "$a" -v error $b -show_entries stream=$opt -of default=nw=1 |grep -Ev "DISPOSITION|N/A"
     #ffprobe -show_streams "$a" -v error $b -show_entries stream=$opt |sed 's/\/STREAM/__/g'|grep -E "__|$(echo $opt|tr , '|')"|sed 's/$/; /g'
@@ -147,13 +149,12 @@ do
         e) enc=${OPTARG}    ;;
     esac
 done
-! [ -z "$inp" ] && check_input || askInput
-[ -z $enc ]  && GPU_Encoder
+[ -z "$enc" ]  && GPU_Encoder
 echo -e "   ENCODER: \t $enc"
-[ -z $out ]  && out="output"
+[ -z "$out" ]  && out="output"
 echo -e "   OUTPUT: \t $out"
-[ -z $mode ] && ask ||  m=$mode; ask #ask will run directly with mode selected
-
+! [ -z "$inp" ] && check_input ||  echo "Warning! No input file specified! "
+[ -z "$mode" ] && ask ||  m=$mode; ask #ask will run directly with mode selected
 
 # for i in ./source/*/Frame/*.png; do
 #     f=$(basename "$i"); d=$(dirname "$i")
