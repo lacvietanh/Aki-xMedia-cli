@@ -38,7 +38,7 @@ ask(){
 }
 askInput(){ # $1 define total of input
     local f
-    echo " This function require $1 input!"
+    echo " This function require $1 input! $i"
     echo " Tip: MacOS can drag & drop file/folder to this terminal window instead of typing keyboard"
     echo " Type path to file/folder"
     for (( i=0; i<$1; i++ )); do
@@ -52,6 +52,7 @@ askInput(){ # $1 define total of input
             fi
         done
     done
+    declare -p inp
     check_input
 }
 check_input(){
@@ -67,17 +68,17 @@ check_input(){
 ##############  Menu Functions  ###################
 ImgToVid(){ #1
     [ -z "$inp" ] && askInput 1
-    local outfile=output/"${FUNCNAME[0]}_${out}-$(basename ${inp[0]})".mp4
+    local outfile=output/"${FUNCNAME[0]}_${out}-$(basename ${inp[0]}).mp4"
     ffmpeg -y -i "${inp[0]}" -c:v $enc -tune stillimage $quietflag "$outfile"
 }
 JoinAudToVid(){ #2
     [ -z "$inp" ] && askInput 2
-    local outfile=output/"${FUNCNAME[0]}_${out}-$(basename '${inp[0]}')-${inp[1]}".mp4
+    local outfile=output/"${FUNCNAME[0]}_${out}-$(basename ${inp[0]})-${inp[1]}".mp4
     ffmpeg -y -i "${inp[0]}" -i "${inp[1]}" -c:v copy $quietflag "$outfile"
 }
 JoinImgToVid(){ #3
     [ -z "$inp" ] && askInput 2
-    local outfile=output/"${FUNCNAME[0]}_${out}-$(basename '${inp[0]}')-${inp[1]}".mp4
+    local outfile=output/"${FUNCNAME[0]}_${out}-$(basename ${inp[0]})-$(basename ${inp[1]})".mp4
     # echo $(realpath ${inp[0]}); echo $(realpath ${inp[1]})
     ffmpeg -y -i "${inp[0]}" -i "${inp[1]}" -c:v $enc \
     -filter_complex [0]overlay=x=0:y=0[out] -map [out] -map 0:a \
@@ -87,21 +88,23 @@ JoinImgToVid(){ #3
 }
 ConvertExt(){ #4
     [ -z "$inp" ] && askInput 1
-    local outfile=output/"${FUNCNAME[0]}-$(basename '${inp[0]}')-${out}"
+    local outfile=output/"${FUNCNAME[0]}-$(basename ${inp[0]})-${out}"
     ffmpeg -y -i "${inp[0]}" $quietflag "$outfile"
 }
 CheckMetaInfo(){ #5
+    #NOT WORKING RIGHT
     local a b opt _type
     [ -z $1 ] && a="${inp[0]}" || a="$1"
     ! [ -z $2 ] && b=" -select_streams $2"
-    _type=$(ffprobe -show_streams "$a" -v error -show_entries stream=codec_type -of default=nw=1|grep -v DISPOSITION)
+    _type=$(ffprobe -show_streams "$a" -v error -show_entries stream=codec_type -of default=nw=1|grep -v DISPOSITION|cut -f2 -d=)
+    echo $_type
     case $_type in
-        *video) opt="codec_name,codec_long_name,width,height,bit_rate,sample_rate" ;;
-        *image) opt="codec_name,codec_long_name,width,height" ;;
-        *audio) opt="codec_name,codec_long_name,bit_rate,sample_rate" ;;
-        *) echo "error | $_type"
+        video) opt="codec_name,codec_long_name,width,height,bit_rate,sample_rate" ;;
+        image) opt="codec_name,codec_long_name,width,height" ;;
+        audio) opt="codec_name,codec_long_name,bit_rate,sample_rate" ;;
+        *) echo "error | $_type" ;;
     esac
-    ffprobe -show_streams "$a" -v error $b -show_entries stream=$opt -of default=nw=1 |grep -Ev "DISPOSITION|N/A"
+    ffprobe -show_streams "$a" -v error $b -show_entries stream=$opt -of default=nw=1 |grep -vE "DISPOSITION|TAG"
     #ffprobe -show_streams "$a" -v error $b -show_entries stream=$opt |sed 's/\/STREAM/__/g'|grep -E "__|$(echo $opt|tr , '|')"|sed 's/$/; /g'
     echo ""
 }
