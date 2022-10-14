@@ -37,24 +37,30 @@ ask(){
     esac
 }
 askInput(){ # $1 define total of input
+    # NOT WORKING RIGHT
     local f
+    echo " This function require $1 input!"
     echo " Tip: MacOS can drag & drop file/folder to this terminal window instead of typing keyboard"
     echo " Type path to file/folder"
-    for (( i=1; i=$1; i++ )); do
-        while [ "$f" == "" ]; do
-            read -p "Input $((i+1)): " f
-            ls "$f" >/dev/null 2>&1 && inp+=("${f}"); let "i+=1" || echo "Not found! ($f)"; f=0
-        done
+    for (( i=0; i<$1; i++ )); do
+        while [ "$f" == "" ]; do read -p "Input $((i+1)): " f ; done
+        ls -a "$f" >/dev/null 2>&1
+        if [ $? -eq 0 ]; then
+            inp+=("${f}"); declare -p inp
+        else
+            echo "Not found! ($f)"; f=""
+        fi
     done
     check_input
 }
 check_input(){
     for (( i=0; i<${#inp[@]};i++ )); do
         # if [[ -f ${inp[$i]} ]] || [[ -d ${inp[$i]} ]]; then
-        if [ ls "${inp[$i]}" >/dev/null 2>&1 ]; then
-            echo -e "   INPUT \t $i: ${inp[$i]} ....... OK"
+        ls -a "${inp[$i]}" >/dev/null 2>&1
+        if [ $? -eq 0 ]; then
+            echo -e "   INPUT \t $((i+1)): ${inp[$i]} ....... OK"
         else
-            echo -e "   INPUT \t $i: ${inp[$i]} ....... Not Found!"; unset inp[$i]
+            echo -e "   INPUT \t $((i+1)): ${inp[$i]} ....... Not Found!"; unset inp[$i]
         fi
     done
 }
@@ -157,6 +163,6 @@ echo -e "   OUTPUT: \t $out"
 [ -z "$mode" ] && ask ||  m=$mode; ask #ask will run directly with mode selected
 
 # for i in ./source/*/Frame/*.png; do
-#     f=$(basename "$i"); d=$(dirname "$i")
-#     [[ "$f" =~ "+" ]] && mv "$i" "${d}/$(echo $f|head -c 1)-ver.png" || mv "$i" "${d}/$(echo $f|head -c 1)-sqr.png"
+#     f=$(basename "$i"); d=$(dirname "$i"); num=$(echo "$f"|head -c 1)
+#     [[ "$f" =~ "+" ]] && mv "$i" "${d}/${num}-ver.png" || mv "$i" "${d}/${num}-sqr.png"
 # done
