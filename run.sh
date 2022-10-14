@@ -56,7 +56,6 @@ askInput(){ # $1 define total of input
 }
 check_input(){
     for (( i=0; i<${#inp[@]};i++ )); do
-        # if [[ -f ${inp[$i]} ]] || [[ -d ${inp[$i]} ]]; then
         ls -a "${inp[$i]}" >/dev/null 2>&1
         if [ $? -eq 0 ]; then
             echo -e "   INPUT \t $((i+1)): ${inp[$i]} ....... OK"
@@ -70,7 +69,6 @@ ImgToVid(){ #1
     [ -z "$inp" ] && askInput 1
     local outfile=output/"${FUNCNAME[0]}_${out}-$(basename ${inp[0]})".mp4
     ffmpeg -y -i "${inp[0]}" -c:v $enc -tune stillimage $quietflag "$outfile"
-    echo 1
 }
 JoinAudToVid(){ #2
     [ -z "$inp" ] && askInput 2
@@ -160,7 +158,7 @@ echo -e "   ENCODER: \t $enc"
 [ -z "$out" ]  && out="output"
 echo -e "   OUTPUT: \t $out"
 ! [ -z "$inp" ] && check_input ||  echo "Warning! No input file specified! "
-[ -z "$mode" ] && ask ||  m=$mode; ask #ask will run directly with mode selected
+if [ -z "$mode" ]; then ask; else m=$mode; ask; fi
 
 # for i in ./source/*/Frame/*.png; do
 #     f=$(basename "$i"); d=$(dirname "$i"); num=$(echo "$f"|head -c 1)
