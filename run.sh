@@ -1,13 +1,21 @@
 #!/bin/bash
 # Script Author: Lac Viet Anh
-# Version: 2022.10.15
-# To do: 1. input folder      2. scale/move input     3. Map select audio (JoinAudToVid)
+# Version: 2022.10.18
+# To do: 1. input folder  
 # clear
 ###################  init  ########################
-declare os mode inp out="output/" enc m inp=() quietflag="-v quiet -stats -loglevel warning"
+declare os args mode inp out="output/" enc m inp=() quietflag="-v quiet -stats -loglevel warning"
 declare WELCOME_MESSAGE="==== Aki ffmpeg tool for Video - Image - Audio ===="
 
 ##############  Core Functions  ###################
+check_ffmpeg(){
+    local v=$(ffmpeg -version $q)
+    if [ $? == 1 ]; then
+        clear
+        echo "NEED FFMPEG INSTALLED TO RUN!"
+        exit 1
+    fi
+}
 menu(){
     echo -e "${WELCOME_MESSAGE}"
     echo "Select Tool:"
@@ -38,7 +46,7 @@ ask(){
 }
 askInput(){ # $1 define total of input
     local f
-    echo " This function require $1 input! $i"
+    echo " This function require $1 input!"
     echo " Tip: MacOS can drag & drop file/folder to this terminal window instead of typing keyboard"
     echo " Type path to file/folder"
     for (( i=0; i<$1; i++ )); do
@@ -60,9 +68,9 @@ check_input(){
     for (( i=0; i<${#inp[@]};i++ )); do
         ls -a "${inp[$i]}" >/dev/null 2>&1
         if [ $? -eq 0 ]; then
-            echo -e "   INPUT $((i+1))\t: ${inp[$i]}\t....... OK"
+            echo -e "   INPUT $((i+1)):\t ${inp[$i]}\t....... OK"
         else
-            echo -e "   INPUT $((i+1))\t: ${inp[$i]}\t....... Not Found!"; unset inp[$i]
+            echo -e "   INPUT $((i+1)):\t ${inp[$i]}\t....... Not Found!"; unset inp[$i]
         fi
     done
 }
@@ -79,11 +87,19 @@ JoinAudToVid(){ #2
 }
 JoinImgToVid(){ #3
     [ -z "$inp" ] && askInput 2
-    local outfile="${out}"${FUNCNAME[0]}_$(basename "${inp[0]}")-$(basename "${inp[1]}").mp4
-    ffmpeg -n -i "${inp[0]}" -i "${inp[1]}" -c:v $enc \
-    -filter_complex "[1][0]scale2ref[i][v];[v][i]overlay[v]" \
-    -map [v] -map 0:a \
-    $quietflag  "$outfile"
+    local outfile="${out}"vertical-$(basename "${inp[0]}")-$(basename "${inp[1]}").mp4
+    size_i=$(ffprobe -v error -select_streams v -show_entries stream=width,height -of csv=p=0:s=x "${inp[0]}")
+    size_h=$(echo $size_i | cut -d x -f 2)
+    echo "input 1 size: $size_i | heigh=$size_h"
+    ffmpeg -y -i "${inp[0]}" -i "${inp[1]}" -c:v $enc \
+    -filter_complex " 
+    nullsrc=size=720x1280 [b]; \
+    [0]     scale=-1:$size_h    [v]; \
+    [1]     scale=-1:$size_h    [i]; \
+    [b][v] overlay=:x=0:y=0:shortest=1     [x]; \
+    [x][i] overlay=:x=0:y=0   [o]  \
+    " -map [o] -map 0:a \
+     $quietflag  "$outfile"
     echo -e "\t Orginal: \t" $(CheckMetaInfo  "${inp[0]}" v)
     echo -e "\t Output:  \t" $(CheckMetaInfo  "$outfile"  v)
 }
@@ -93,20 +109,22 @@ ConvertExt(){ #4
     ffmpeg -y -i "${inp[0]}" $quietflag "$outfile"
 }
 CheckMetaInfo(){ #5
-    #NOT WORKING RIGHT
     local a b opt _type
     [ -z "$1" ] && a="${inp[0]}" || a="$1"
     ! [ -z $2 ] && b=" -select_streams $2"
-    _type=$( ffprobe -show_streams "$a" -v error -select_streams 0 -show_entries stream=codec_type -of default=nw=1|grep -v DISPOSITION|cut -f2 -d=|head -n1)
-    echo $_type
-    case $_type in
-        video) opt="codec_name,width,height,bit_rate,sample_rate" ;;
-        image) opt="codec_name,width,height" ;;
-        audio) opt="codec_name,bit_rate,sample_rate" ;;
-        *) echo "error | $_type" ;;
-    esac
-    ffprobe -show_streams "$a" -v error $b -show_entries stream="$opt" -of default=nw=1 |grep -vE "DISPOSITION|TAG"|tr "\n" " "
-    echo ""
+    ls -a "$a" # >/dev/null 2>&1
+    if [ $? -eq 0 ]; then
+        _type=$(ffprobe -v error -select_streams v -show_entries stream=codec_type -of csv=p=0:s=x "$a")
+        echo $_type 
+        case $_type in
+            video) opt="codec_name,width,height,bit_rate,sample_rate" ;;
+            image) opt="codec_name,width,height" ;;
+            audio) opt="codec_name,bit_rate,sample_rate" ;;
+            *) echo "error | $_type" ;;
+        esac
+        ffprobe -show_streams "$a" -v error $b -show_entries stream="$opt" -of default=nw=1 |grep -vE "DISPOSITION|TAG"|tr "\n" " "
+        echo ""
+    fi
 }
 ShowSysInfo(){ #s
     local p
@@ -147,9 +165,10 @@ GetDefault_Encoder() { #e
 
 ##################  run   ########################
 cd $(dirname "$0")
-while getopts m:i:o:e: flag
+pwd
+while getopts m:i:o:e: args
 do
-    case "${flag}" in
+    case "${args}" in
         m) mode=${OPTARG}     ;;
         i) inp+=("${OPTARG}") ;;
         o) out="${OPTARG}"    ;;
