@@ -4,7 +4,7 @@
 # To do: 1. input folder      2. scale/move input     3. Map select audio (JoinAudToVid)
 clear;
 ###################  init  ########################
-declare os mode inp out enc m inp=() quietflag="-v quiet -stats -loglevel warning"
+declare os mode inp out="output/" enc m inp=() quietflag="-v quiet -stats -loglevel warning"
 declare WELCOME_MESSAGE="==== Aki ffmpeg tool for Video - Image - Audio ===="
 
 ##############  Core Functions  ###################
@@ -17,22 +17,22 @@ menu(){
     echo "  4: Convert Media Type (Extension)"
     echo "  5: Check MetaInfo"
     echo "  s: Show System Info (Encoder/HardwareAccel)"
-    echo "  g: Show GPU supported Encoder"
+    echo "  g: Show Default Encoder (GPU)"
     echo "  h: Show help"
     echo "  e: Exit"
 }
 ask(){
     if [ -z $m ]; then menu; read -p "You select: " m; fi
     case $m in
-        1) ImgToVid      ;;
-        2) JoinAudToVid  ;;
-        3) JoinImgToVid  ;;
-        4) ConvertExt    ;;
-        5) CheckMetaInfo ;;
-        s) ShowSysInfo   ;;
-        g) GPU_Encoder   ;;
-        h) _help         ;;
-        e) exit 0        ;;
+        1) ImgToVid             ;;
+        2) JoinAudToVid         ;;
+        3) JoinImgToVid         ;;
+        4) ConvertExt           ;;
+        5) CheckMetaInfo        ;;
+        s) ShowSysInfo          ;;
+        g) GetDefault_Encoder   ;;
+        h) _help                ;;
+        e) exit 0               ;;
         *) echo "Invalid option"; unset m; sleep 1; clear; _help ;;
     esac
 }
@@ -68,18 +68,17 @@ check_input(){
 ##############  Menu Functions  ###################
 ImgToVid(){ #1
     [ -z "$inp" ] && askInput 1
-    local outfile=output/"${FUNCNAME[0]}_${out}-$(basename ${inp[0]}).mp4"
+    local outfile="${out}${FUNCNAME[0]}_$(basename ${inp[0]}).mp4"
     ffmpeg -y -i "${inp[0]}" -c:v $enc -tune stillimage $quietflag "$outfile"
 }
 JoinAudToVid(){ #2
     [ -z "$inp" ] && askInput 2
-    local outfile=output/"${FUNCNAME[0]}_${out}-$(basename ${inp[0]})-${inp[1]}".mp4
+    local outfile="${out}${FUNCNAME[0]}_$(basename ${inp[0]})-${inp[1]}".mp4
     ffmpeg -y -i "${inp[0]}" -i "${inp[1]}" -c:v copy $quietflag "$outfile"
 }
 JoinImgToVid(){ #3
     [ -z "$inp" ] && askInput 2
-    local outfile=output/"${FUNCNAME[0]}_${out}-$(basename ${inp[0]})-$(basename ${inp[1]})".mp4
-    # echo $(realpath ${inp[0]}); echo $(realpath ${inp[1]})
+    local outfile="${out}${FUNCNAME[0]}_$(basename ${inp[0]})-$(basename ${inp[1]})".mp4
     ffmpeg -y -i "${inp[0]}" -i "${inp[1]}" -c:v $enc \
     -filter_complex [0]overlay=x=0:y=0[out] -map [out] -map 0:a \
     $quietflag  "$outfile"
@@ -88,7 +87,7 @@ JoinImgToVid(){ #3
 }
 ConvertExt(){ #4
     [ -z "$inp" ] && askInput 1
-    local outfile=output/"${FUNCNAME[0]}-$(basename ${inp[0]})-${out}"
+    local outfile="${out}${FUNCNAME[0]}-$(basename ${inp[0]})"
     ffmpeg -y -i "${inp[0]}" $quietflag "$outfile"
 }
 CheckMetaInfo(){ #5
@@ -131,10 +130,10 @@ _help(){ #h
     echo "   $(basename $0) -m MODE [number] -i INPUT -o OUTPUT -e ENCODER "
     echo "   Remember: the first input will be the bottom layer!"
     echo "   Hardware Accels: h264_nvenc for linux with Nvidia, h264_videotoolbox with AMD"
-    echo -e "   \tExample: $(basename $0) -m 3 -i videoInput.mp4 -i frame.png -o output.mp4 -e libx264|h264_nvenc|h264_videotoolbox\n"
+    echo -e "   \tExample: $(basename $0) -m 3 -i videoInput.mp4 -i frame.png -o output/output.mp4 -e libx264|h264_nvenc|h264_videotoolbox\n"
     unset m; ask
 }
-GPU_Encoder() { #e
+GetDefault_Encoder() { #e
     local r pre
     os="$(uname|xargs)"; pre="   OS: \t\t $os | Default ENCODER: "
     [ "$os" == "Linux" ]  && r="$(lspci -vnnn | perl -lne 'print if /^\d+\:.+(\[\S+\:\S+\])/' | grep VGA)"
@@ -146,7 +145,7 @@ GPU_Encoder() { #e
 }
 
 ##################  run   ########################
-cd $(dirname "$0"); mkdir -p ./output
+cd $(dirname "$0")
 while getopts m:i:o:e: flag
 do
     case "${flag}" in
@@ -156,9 +155,9 @@ do
         e) enc=${OPTARG}    ;;
     esac
 done
-[ -z "$enc" ]  && GPU_Encoder
+[ -z "$enc" ]  && GetDefault_Encoder
 echo -e "   ENCODER: \t $enc"
-[ -z "$out" ]  && out="output"
+[ -z "$out" ]  && out="output/"
 echo -e "   OUTPUT: \t $out"
 ! [ -z "$inp" ] && check_input ||  echo "Warning! No input file specified! "
 if [ -z "$mode" ]; then ask; else m=$mode; ask; fi
