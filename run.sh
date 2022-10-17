@@ -2,7 +2,7 @@
 # Script Author: Lac Viet Anh
 # Version: 2022.10.15
 # To do: 1. input folder      2. scale/move input     3. Map select audio (JoinAudToVid)
-clear;
+# clear
 ###################  init  ########################
 declare os mode inp out="output/" enc m inp=() quietflag="-v quiet -stats -loglevel warning"
 declare WELCOME_MESSAGE="==== Aki ffmpeg tool for Video - Image - Audio ===="
@@ -56,44 +56,46 @@ askInput(){ # $1 define total of input
     check_input
 }
 check_input(){
+    # echo "input length: ${#inp[@]}"
     for (( i=0; i<${#inp[@]};i++ )); do
         ls -a "${inp[$i]}" >/dev/null 2>&1
         if [ $? -eq 0 ]; then
-            echo -e "   INPUT \t $((i+1)): ${inp[$i]} ....... OK"
+            echo -e "   INPUT $((i+1))\t: ${inp[$i]}\t....... OK"
         else
-            echo -e "   INPUT \t $((i+1)): ${inp[$i]} ....... Not Found!"; unset inp[$i]
+            echo -e "   INPUT $((i+1))\t: ${inp[$i]}\t....... Not Found!"; unset inp[$i]
         fi
     done
 }
 ##############  Menu Functions  ###################
 ImgToVid(){ #1
     [ -z "$inp" ] && askInput 1
-    local outfile="${out}${FUNCNAME[0]}_$(basename ${inp[0]}).mp4"
+    local outfile="${out}"${FUNCNAME[0]}_$(basename "${inp[0]}").mp4
     ffmpeg -y -i "${inp[0]}" -c:v $enc -tune stillimage $quietflag "$outfile"
 }
 JoinAudToVid(){ #2
     [ -z "$inp" ] && askInput 2
-    local outfile="${out}${FUNCNAME[0]}_$(basename ${inp[0]})-${inp[1]}".mp4
+    local outfile="${out}"${FUNCNAME[0]}_$(basename "${inp[0]}")-$(basename "${inp[1]}").mp4
     ffmpeg -y -i "${inp[0]}" -i "${inp[1]}" -c:v copy $quietflag "$outfile"
 }
 JoinImgToVid(){ #3
     [ -z "$inp" ] && askInput 2
-    local outfile="${out}${FUNCNAME[0]}_$(basename ${inp[0]})-$(basename ${inp[1]})".mp4
+    local outfile="${out}"${FUNCNAME[0]}_$(basename "${inp[0]}")-$(basename "${inp[1]}").mp4
     ffmpeg -y -i "${inp[0]}" -i "${inp[1]}" -c:v $enc \
-    -filter_complex [0]overlay=x=0:y=0[out] -map [out] -map 0:a \
+    -filter_complex "[1][0]scale2ref[i][m];[m][i]overlay[v]" \
+    -map [v] -map 0:a \
     $quietflag  "$outfile"
     echo -e "\t Orginal: \t" $(CheckMetaInfo  "${inp[0]}" v)
     echo -e "\t Output:  \t" $(CheckMetaInfo  "$outfile"  v)
 }
 ConvertExt(){ #4
     [ -z "$inp" ] && askInput 1
-    local outfile="${out}${FUNCNAME[0]}-$(basename ${inp[0]})"
+    local outfile="${out}"${FUNCNAME[0]}_$(basename "${inp[0]}").mp4
     ffmpeg -y -i "${inp[0]}" $quietflag "$outfile"
 }
 CheckMetaInfo(){ #5
     #NOT WORKING RIGHT
     local a b opt _type
-    [ -z $1 ] && a="${inp[0]}" || a="$1"
+    [ -z "$1" ] && a="${inp[0]}" || a="$1"
     ! [ -z $2 ] && b=" -select_streams $2"
     _type=$(ffprobe -show_streams "$a" -v error -show_entries stream=codec_type -of default=nw=1|grep -v DISPOSITION|cut -f2 -d=)
     echo $_type
@@ -103,7 +105,7 @@ CheckMetaInfo(){ #5
         audio) opt="codec_name,codec_long_name,bit_rate,sample_rate" ;;
         *) echo "error | $_type" ;;
     esac
-    ffprobe -show_streams "$a" -v error $b -show_entries stream=$opt -of default=nw=1 |grep -vE "DISPOSITION|TAG"
+    ffprobe -show_streams "$a" -v error $b -show_entries stream="$opt" -of default=nw=1 |grep -vE "DISPOSITION|TAG"
     #ffprobe -show_streams "$a" -v error $b -show_entries stream=$opt |sed 's/\/STREAM/__/g'|grep -E "__|$(echo $opt|tr , '|')"|sed 's/$/; /g'
     echo ""
 }
@@ -149,16 +151,16 @@ cd $(dirname "$0")
 while getopts m:i:o:e: flag
 do
     case "${flag}" in
-        m) mode=${OPTARG}   ;;
-        i) inp+=(${OPTARG}) ;;
-        o) out=${OPTARG}    ;;
-        e) enc=${OPTARG}    ;;
+        m) mode=${OPTARG}     ;;
+        i) inp+=("${OPTARG}") ;;
+        o) out="${OPTARG}"    ;;
+        e) enc=${OPTARG}      ;;
     esac
 done
 [ -z "$enc" ]  && GetDefault_Encoder
 echo -e "   ENCODER: \t $enc"
 [ -z "$out" ]  && out="output/"
-echo -e "   OUTPUT: \t $out"
+echo -e "   OUTPUT: \t $out"; mkdir -p "$out"
 ! [ -z "$inp" ] && check_input ||  echo "Warning! No input file specified! "
 if [ -z "$mode" ]; then ask; else m=$mode; ask; fi
 
