@@ -80,8 +80,8 @@ JoinAudToVid(){ #2
 JoinImgToVid(){ #3
     [ -z "$inp" ] && askInput 2
     local outfile="${out}"${FUNCNAME[0]}_$(basename "${inp[0]}")-$(basename "${inp[1]}").mp4
-    ffmpeg -y -i "${inp[0]}" -i "${inp[1]}" -c:v $enc \
-    -filter_complex "[1][0]scale2ref[i][m];[m][i]overlay[v]" \
+    ffmpeg -n -i "${inp[0]}" -i "${inp[1]}" -c:v $enc \
+    -filter_complex "[1][0]scale2ref[i][v];[v][i]overlay[v]" \
     -map [v] -map 0:a \
     $quietflag  "$outfile"
     echo -e "\t Orginal: \t" $(CheckMetaInfo  "${inp[0]}" v)
@@ -97,16 +97,15 @@ CheckMetaInfo(){ #5
     local a b opt _type
     [ -z "$1" ] && a="${inp[0]}" || a="$1"
     ! [ -z $2 ] && b=" -select_streams $2"
-    _type=$(ffprobe -show_streams "$a" -v error -show_entries stream=codec_type -of default=nw=1|grep -v DISPOSITION|cut -f2 -d=)
+    _type=$( ffprobe -show_streams "$a" -v error -select_streams 0 -show_entries stream=codec_type -of default=nw=1|grep -v DISPOSITION|cut -f2 -d=|head -n1)
     echo $_type
     case $_type in
-        video) opt="codec_name,codec_long_name,width,height,bit_rate,sample_rate" ;;
-        image) opt="codec_name,codec_long_name,width,height" ;;
-        audio) opt="codec_name,codec_long_name,bit_rate,sample_rate" ;;
+        video) opt="codec_name,width,height,bit_rate,sample_rate" ;;
+        image) opt="codec_name,width,height" ;;
+        audio) opt="codec_name,bit_rate,sample_rate" ;;
         *) echo "error | $_type" ;;
     esac
-    ffprobe -show_streams "$a" -v error $b -show_entries stream="$opt" -of default=nw=1 |grep -vE "DISPOSITION|TAG"
-    #ffprobe -show_streams "$a" -v error $b -show_entries stream=$opt |sed 's/\/STREAM/__/g'|grep -E "__|$(echo $opt|tr , '|')"|sed 's/$/; /g'
+    ffprobe -show_streams "$a" -v error $b -show_entries stream="$opt" -of default=nw=1 |grep -vE "DISPOSITION|TAG"|tr "\n" " "
     echo ""
 }
 ShowSysInfo(){ #s
