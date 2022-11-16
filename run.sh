@@ -1,6 +1,6 @@
 #!/bin/bash
 # Script Author: Lac Viet Anh
-# Version: 2022.10.18
+# Version: 2022.11.17
 # To do: 1. input folder  
 # clear
 ###################  init  ########################
@@ -22,7 +22,7 @@ menu(){
     echo "  1: Convert Image to Video"
     echo "  2: Join Audio to Video [ -i AUDIO -i VIDEO ]"
     echo "  3: Join Image to Video [ -i VIDEO -i IMAGE ]"
-    echo "  4: Convert Media Type (Extension)"
+    echo "  4: Convert Media Type (Extension) [default: mp4]"
     echo "  5: Check MetaInfo"
     echo "  s: Show System Info (Encoder/HardwareAccel)"
     echo "  g: Show Default Encoder (GPU)"
@@ -77,13 +77,13 @@ check_input(){
 ##############  Menu Functions  ###################
 ImgToVid(){ #1
     [ -z "$inp" ] && askInput 1
-    local outfile="${out}"${FUNCNAME[0]}_$(basename "${inp[0]}").mp4
+    local outfile="${out}"${FUNCNAME[0]}-$(basename "${inp[0]}").mp4
     ffmpeg -y -i "${inp[0]}" -c:v $enc -tune stillimage $quietflag "$outfile"
 }
 JoinAudToVid(){ #2
     [ -z "$inp" ] && askInput 2
     local outfile="${out}"${FUNCNAME[0]}_$(basename "${inp[0]}")-$(basename "${inp[1]}").mp4
-    ffmpeg -y -i "${inp[0]}" -i "${inp[1]}" -c:v copy $quietflag "$outfile"
+    ffmpeg -y -i "${inp[0]}" -i "${inp[1]}" -c:v copy -map 1:v:0 -map 0:a:0 -shortest $quietflag "$outfile"
 }
 JoinImgToVid(){ #3
     [ -z "$inp" ] && askInput 2
@@ -105,7 +105,7 @@ JoinImgToVid(){ #3
 }
 ConvertExt(){ #4
     [ -z "$inp" ] && askInput 1
-    local outfile="${out}"${FUNCNAME[0]}_$(basename "${inp[0]}").mp4
+    local outfile="${out}"${FUNCNAME[0]}-$(basename "${inp[0]}").mp4
     ffmpeg -y -i "${inp[0]}" $quietflag "$outfile"
 }
 CheckMetaInfo(){ #5
